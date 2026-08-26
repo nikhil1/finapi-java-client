@@ -1,0 +1,89 @@
+/*
+ * Copyright 2018 Roman Proshin
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.proshin.finapi.bank;
+
+import org.cactoos.iterable.IterableOf;
+import org.cactoos.iterable.IterableOfLongs;
+import org.junit.jupiter.api.Test;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
+import org.proshin.finapi.TestWithMockedEndpoint;
+import static org.proshin.finapi.bank.Bank.DataSource.FINTS_SERVER;
+import static org.proshin.finapi.bank.Bank.DataSource.WEB_SCRAPER;
+import org.proshin.finapi.bank.in.BanksCriteria;
+import org.proshin.finapi.fake.FakeAccessToken;
+import org.proshin.finapi.primitives.BankingInterface;
+import org.proshin.finapi.primitives.paging.Page;
+import org.proshin.finapi.primitives.paging.PagingCriteria;
+
+@SuppressWarnings("JUnitTestMethodWithNoAssertions")
+public final class BanksTest extends TestWithMockedEndpoint {
+
+    @Test
+    public void testOne() {
+        this.server()
+            .when(
+                HttpRequest.request("/api/v1/banks/123")
+                    .withHeader("Authorization", "Bearer user-token")
+            )
+            .respond(
+                HttpResponse.response("{}")
+            );
+        new FpBanks(
+            this.endpoint(),
+            new FakeAccessToken("user-token")
+        ).one(123L);
+    }
+
+    @Test
+    public void testSearch() {
+        this.server()
+            .when(
+                HttpRequest.request("/api/v1/banks")
+                    .withHeader("Authorization", "Bearer user-token")
+                    .withQueryStringParameter("ids", "1,2,3")
+                    .withQueryStringParameter("search", "just a word")
+                    .withQueryStringParameter("isSupported", "true")
+                    .withQueryStringParameter("pinsAreVolatile", "true")
+                    .withQueryStringParameter("supportedDataSources", "WEB_SCRAPER,FINTS_SERVER")
+                    .withQueryStringParameter("supportedInterfaces", "XS2A,FINTS_SERVER")
+                    .withQueryStringParameter("location", "DE")
+                    .withQueryStringParameter("isTestBank", "true")
+                    .withQueryStringParameter("page", "2")
+                    .withQueryStringParameter("perPage", "20")
+                    .withQueryStringParameter("order", "id,asc", "name,desc")
+            )
+            .respond(
+                HttpResponse.response("{\"banks\":[{}]}")
+            );
+        final Page<Bank> banks = new FpBanks(
+            this.endpoint(),
+            new FakeAccessToken("user-token")
+        ).search(
+            new BanksCriteria()
+                .withIds(new IterableOfLongs(1L, 2L, 3L))
+                .withSearch("just a word")
+                .withSupporting(true)
+                .withPinsAreVolatile(true)
+                .withSupportedDataSources(new IterableOf<>(WEB_SCRAPER, FINTS_SERVER))
+                .withSupportedInterfaces(new IterableOf<>(BankingInterface.XS2A, BankingInterface.FINTS_SERVER))
+                .withLocation(new IterableOf<>("DE"))
+                .withTestBank(true)
+                .withPaging(new PagingCriteria(2, 20, "id,asc", "name,desc"))
+        );
+        final Bank bank = banks.items().iterator().next();
+    }
+}

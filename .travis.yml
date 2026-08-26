@@ -1,0 +1,21 @@
+dist: xenial
+language: java
+os:
+  - linux
+jdk:
+  - openjdk11
+cache:
+  directories:
+    - "$HOME/.m2/repository"
+    - "$HOME/.sonar/cache"
+addons:
+  sonarcloud:
+    organization: proshin-roman-github
+install: true
+script:
+- mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package iwillfailyou:iwillfailyou sonar:sonar
+after_success:
+- mvn coveralls:report
+- bash <(curl -s https://codecov.io/bash)
+- ./before-deploy.sh
+- ./deploy.sh
